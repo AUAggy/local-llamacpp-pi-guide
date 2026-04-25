@@ -1,0 +1,38 @@
+# Build artifacts
+build/
+out/
+dist/
+
+# Large model files
+*.gguf
+*.gguf.*
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Runtime noise
+*.log
+*.tmp
+*.pid
+
+# Secrets and local config
+.env
+.env.*
+auth.json
+models.local.json
+settings.local.json
+
+# Editor / OS noise
+.DS_Store
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Node noise
+node_modules/
