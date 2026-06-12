@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-MODEL="${MODEL:-$HOME/models/Qwen3.6-27B-Q4_K_M.gguf}"
+MODEL="${MODEL:-$HOME/models/gemma-4-31B-it-Q4_K_M.gguf}"
 MODEL_BASENAME="$(basename "$MODEL")"
 
 PIDS="$(ps -axo pid=,command= | awk -v model="$MODEL" -v base="$MODEL_BASENAME" '
@@ -9,11 +9,11 @@ PIDS="$(ps -axo pid=,command= | awk -v model="$MODEL" -v base="$MODEL_BASENAME" 
 ')"
 
 if [ -z "$PIDS" ]; then
-  echo "No Qwen llama-server process found."
+  echo "No Gemma 4 llama-server process found."
   exit 0
 fi
 
-echo "Stopping Qwen llama-server: $PIDS"
+echo "Stopping Gemma 4 llama-server: $PIDS"
 # shellcheck disable=SC2086
 kill $PIDS
 sleep 1
@@ -23,7 +23,7 @@ REMAINING="$(ps -axo pid=,command= | awk -v model="$MODEL" -v base="$MODEL_BASEN
 ')"
 
 if [ -n "$REMAINING" ]; then
-  echo "Qwen llama-server is still running: $REMAINING" >&2
+  echo "Gemma 4 llama-server is still running: $REMAINING" >&2
   echo "Trying SIGKILL..." >&2
   # shellcheck disable=SC2086
   kill -9 $REMAINING
@@ -35,8 +35,8 @@ REMAINING="$(ps -axo pid=,command= | awk -v model="$MODEL" -v base="$MODEL_BASEN
 ')"
 
 if [ -n "$REMAINING" ]; then
-  echo "Qwen llama-server is still running. Stop it manually: $REMAINING" >&2
+  echo "Gemma 4 llama-server is still running. Stop it manually: $REMAINING" >&2
   exit 1
 fi
 
-echo "Qwen llama-server stopped."
+echo "Gemma 4 llama-server stopped."

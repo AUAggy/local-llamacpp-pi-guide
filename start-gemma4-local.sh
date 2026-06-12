@@ -3,10 +3,10 @@ set -euo pipefail
 
 # Override these with environment variables if your local paths differ.
 LLAMA_DIR="${LLAMA_DIR:-/path/to/llama.cpp}"
-MODEL="${MODEL:-$HOME/models/Qwen3.6-27B-Q4_K_M.gguf}"
+MODEL="${MODEL:-$HOME/models/gemma-4-31B-it-Q4_K_M.gguf}"
 HOST="${HOST:-127.0.0.1}"
 PORT="${PORT:-8080}"
-CTX_SIZE="${CTX_SIZE:-65536}"
+CTX_SIZE="${CTX_SIZE:-4096}"
 
 if [ ! -x "$LLAMA_DIR/build/bin/llama-server" ]; then
   echo "llama-server not found at: $LLAMA_DIR/build/bin/llama-server" >&2
@@ -22,11 +22,11 @@ fi
 
 if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
   if ps -axo command= | grep -F "llama-server" | grep -F "$MODEL" >/dev/null 2>&1; then
-    echo "Qwen llama-server already appears to be running on $HOST:$PORT"
+    echo "Gemma 4 llama-server already appears to be running on $HOST:$PORT"
     exit 0
   fi
 
-  echo "Port $PORT is already in use. Stop the current local model before starting Qwen." >&2
+  echo "Port $PORT is already in use. Stop the current local model before starting Gemma 4." >&2
   lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >&2 || true
   exit 1
 fi
@@ -38,7 +38,6 @@ exec "$LLAMA_DIR/build/bin/llama-server" \
   -ngl 999 \
   -c "$CTX_SIZE" \
   --flash-attn on \
-  --reasoning on \
   --temp 0.6 \
   --top-p 0.95 \
   --top-k 20 \

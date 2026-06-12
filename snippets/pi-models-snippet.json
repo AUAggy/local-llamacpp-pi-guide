@@ -1,6 +1,6 @@
 {
   "providers": {
-    "llamacpp": {
+    "llamacpp-qwen3.6": {
       "baseUrl": "http://localhost:8080/v1",
       "api": "openai-completions",
       "apiKey": "sk-no-key-required",
@@ -17,6 +17,31 @@
           "input": ["text"],
           "contextWindow": 65536,
           "maxTokens": 16384,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    },
+    "llamacpp-gemma4": {
+      "baseUrl": "http://localhost:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "sk-no-key-required",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "gemma-4-31b-local",
+          "name": "Gemma 4 31B Q4_K_M (Local)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 4096,
+          "maxTokens": 2048,
           "cost": {
             "input": 0,
             "output": 0,
