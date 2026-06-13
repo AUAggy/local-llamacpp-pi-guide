@@ -19,7 +19,7 @@ This repo is the practical version of that idea: scripts, Pi config, and notes f
 
 The setup should be most useful on M-series MacBook Pros with 24 GB or more unified memory. If you have 16 GB, use a smaller model first.
 
-For the longer story behind this setup, see the field note: [From Ollama to llama.cpp: running Claude Code locally with Qwen 3.6 on a 2021 MacBook Pro](https://miaggy.com/blog/claude-code-with-llama-cpp-and-qwen).
+For the longer story behind this setup, see the field note: <a href="https://miaggy.com/blog/claude-code-with-llama-cpp-and-qwen" target="_blank" rel="noopener noreferrer">From Ollama to llama.cpp: running Claude Code locally with Qwen 3.6 on a 2021 MacBook Pro</a>.
 
 ---
 
@@ -236,7 +236,6 @@ This folder includes helper scripts:
 - `./start-gemma4-local.sh`
 - `./stop-gemma4-local.sh`
 - `./check-local-llm.sh`
-- `./check-qwen-local.sh` as a backwards-compatible alias
 
 The check script is model-agnostic. It checks the server process, port, and `/health` endpoint.
 
