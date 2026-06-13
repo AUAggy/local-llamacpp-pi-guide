@@ -1,17 +1,45 @@
-# Running Pi with local llama.cpp models on an M1 Max with 32 GB RAM
+# Running Pi with local llama.cpp models on Apple Silicon
 
-This is a practical guide for running Pi against a local `llama.cpp` server on Apple Silicon.
+If you have used Claude Code, Codex, or Cursor, you already know the loop: ask an agent to inspect files, edit code, and run commands. This repo shows the same loop with [Pi](https://pi.dev) and `llama.cpp`, using models that run on your Mac instead of a hosted API.
 
-It was validated on an M1 Max with 32 GB unified memory using these local GGUF models:
+Use Opus or a top cloud model for the hardest work. Use a local 27B or 31B model when privacy, offline access, zero marginal cost, and repeatable behavior matter more than maximum intelligence.
+
+That matters for work where sending prompts to a third party is the wrong default: security research, client code, medical or biotech notes, finance, legal drafts, crypto work, defense research, or anything under a strict NDA. Hosted services can offer encryption, no-retention modes, or contractual promises. Those may be enough for many teams. Local inference is simpler to verify: turn off the network and the model still runs.
+
+It also matters when the internet is bad or absent. A local model keeps working on long-haul flights, in labs with locked-down networks, during travel, or anywhere connectivity is slow, filtered, or watched.
+
+The right mental model is a medium-smart coding assistant sealed inside your laptop. It can read a file, explain code, draft a patch, summarize notes, and run tests. It will make mistakes, but its mistakes happen on your machine.
+
+Hosted models can also change underneath you. Recent debate around [Claude Fable's invisible guardrails](https://hnsignals.com/signal/48489229), discussed on [Hacker News](https://news.ycombinator.com/item?id=48489229), is a useful reminder: provider-side behavior can shift for reasons you do not control. With a local GGUF file, the weights on disk are the model you are running.
+
+This repo is the practical version of that idea: scripts, Pi config, and notes for running local coding models through `llama.cpp` on Apple Silicon. It was validated on an M1 Max MacBook Pro with 32 GB unified memory using:
 
 - `Qwen3.6-27B-Q4_K_M.gguf`
 - `gemma-4-31B-it-Q4_K_M.gguf`
 
-The guide started as a Qwen-only setup, but it now covers switching between multiple local `llama.cpp` models. The recommended folder/repo name is now:
+The setup should be most useful on M-series MacBook Pros with 24 GB or more unified memory. If you have 16 GB, use a smaller model first.
 
-```text
-local-llamacpp-pi-guide
-```
+For the longer story behind this setup, see the field note: [From Ollama to llama.cpp: running Claude Code locally with Qwen 3.6 on a 2021 MacBook Pro](https://miaggy.com/blog/claude-code-with-llama-cpp-and-qwen).
+
+---
+
+## What this repo gives you
+
+- Helper scripts to start and stop Qwen or Gemma with `llama-server`.
+- A Pi `models.json` snippet with separate local providers for Qwen and Gemma.
+- Known-good `llama.cpp` flags for Metal on Apple Silicon.
+- Notes on memory limits, context size, and model switching.
+- Smoke tests for the server and Pi tool calling.
+
+---
+
+## Before you try
+
+For the models in this repo, use a Mac with Apple Silicon and at least 24 GB unified memory. A 32 GB machine is a better target. On 16 GB, start with a smaller GGUF model instead of Qwen 27B or Gemma 31B.
+
+You also need enough disk for the model files and build artifacts. Budget roughly 25 to 40 GB if you want to keep both Qwen and Gemma locally.
+
+The first setup needs internet for source and model downloads. After that, the server and Pi can run offline.
 
 ---
 
@@ -32,6 +60,16 @@ So switching models means:
 3. select the matching model inside Pi with `/model`
 
 On a 32 GB M1 Max, do not try to keep Qwen 27B Q4 and Gemma 31B Q4 loaded at the same time.
+
+---
+
+## Why Pi fits local inference
+
+Pi is a small terminal coding agent. It gives the model four tools: `read`, `write`, `edit`, and `bash`. That is enough for many coding sessions, and it keeps the prompt small.
+
+That last part matters locally. A hosted frontier model can absorb a large agent scaffold. A 27B or 31B model on a laptop has less room. Fewer tool schemas and less ceremony mean more of the context window is available for your code and instructions.
+
+If you want a full IDE agent with many built-in workflows, keep using Cursor, Claude Code, or Codex. If you want a local loop you can understand, inspect, and run offline, Pi plus `llama.cpp` is a good fit.
 
 ---
 
@@ -105,7 +143,7 @@ gemma-4-31B-it-Q4_K_M.gguf
 
 Why this quant:
 
-- best first quality target for a 31B-class model on 32 GB unified memory
+- strong first quality target for a 31B-class model on 32 GB unified memory
 - fits at 4k context in local testing
 - slower than Qwen 27B Q4, but usable
 
@@ -197,9 +235,16 @@ This folder includes helper scripts:
 - `./stop-qwen-local.sh`
 - `./start-gemma4-local.sh`
 - `./stop-gemma4-local.sh`
-- `./check-qwen-local.sh`
+- `./check-local-llm.sh`
+- `./check-qwen-local.sh` as a backwards-compatible alias
 
-The check script is model-agnostic despite the old name. It checks the server process, port, and `/health` endpoint.
+The check script is model-agnostic. It checks the server process, port, and `/health` endpoint.
+
+### Check the running server
+
+```bash
+./check-local-llm.sh
+```
 
 ### Start Qwen
 
