@@ -16,6 +16,7 @@ This repo is the practical version of that idea: scripts, Pi config, and notes f
 
 - `Qwen3.6-27B-Q4_K_M.gguf`
 - `gemma-4-31B-it-Q4_K_M.gguf`
+- `ornith-1.0-35b-Q4_K_M.gguf`
 
 The setup should be most useful on M-series MacBook Pros with 24 GB or more unified memory. If you have 16 GB, use a smaller model first.
 
@@ -25,8 +26,8 @@ For the longer story behind this setup, see the field note: <a href="https://mia
 
 ## What this repo gives you
 
-- Helper scripts to start and stop Qwen or Gemma with `llama-server`.
-- A Pi `models.json` snippet with separate local providers for Qwen and Gemma.
+- Helper scripts to start and stop Qwen, Gemma, or Ornith with `llama-server`.
+- A Pi `models.json` snippet with separate local providers for Qwen, Gemma, and Ornith.
 - Known-good `llama.cpp` flags for Metal on Apple Silicon.
 - Notes on memory limits, context size, and model switching.
 - Smoke tests for the server and Pi tool calling.
@@ -35,9 +36,9 @@ For the longer story behind this setup, see the field note: <a href="https://mia
 
 ## Before you try
 
-For the models in this repo, use a Mac with Apple Silicon and at least 24 GB unified memory. A 32 GB machine is a better target. On 16 GB, start with a smaller GGUF model instead of Qwen 27B or Gemma 31B.
+For the models in this repo, use a Mac with Apple Silicon and at least 24 GB unified memory. A 32 GB machine is a better target. On 16 GB, start with a smaller GGUF model instead of Qwen 27B, Gemma 31B, or Ornith 35B.
 
-You also need enough disk for the model files and build artifacts. Budget roughly 25 to 40 GB if you want to keep both Qwen and Gemma locally.
+You also need enough disk for the model files and build artifacts. Budget roughly 45 to 65 GB if you want to keep all three models locally (Qwen 27B and Ornith 35B are each about 17-21 GB; Gemma 31B is about 19 GB).
 
 The first setup needs internet for source and model downloads. After that, the server and Pi can run offline.
 
@@ -51,7 +52,7 @@ Use one `llama-server` endpoint at a time:
 http://127.0.0.1:8080/v1
 ```
 
-Pi can list both Qwen and Gemma, but `llama-server` only serves the model that was loaded when the server started.
+Pi can list Qwen, Gemma, and Ornith, but `llama-server` only serves the model that was loaded when the server started.
 
 So switching models means:
 
@@ -59,7 +60,7 @@ So switching models means:
 2. start the other local model
 3. select the matching model inside Pi with `/model`
 
-On a 32 GB M1 Max, do not try to keep Qwen 27B Q4 and Gemma 31B Q4 loaded at the same time.
+On a 32 GB M1 Max, do not try to keep two of these loaded at the same time. Pick one of Qwen 27B Q4, Gemma 31B Q4, or Ornith 35B Q4 per session.
 
 ---
 
@@ -78,14 +79,18 @@ If you want a full IDE agent with many built-in workflows, keep using Cursor, Cl
 - `llama.cpp` built from source with Metal enabled
 - `Qwen3.6-27B-Q4_K_M.gguf` loaded successfully
 - `gemma-4-31B-it-Q4_K_M.gguf` loaded successfully at 4k context
+- `ornith-1.0-35b-Q4_K_M.gguf` loaded successfully at 65k context with `--reasoning on --reasoning-budget 2048`
 - Pi connected to the local OpenAI-compatible endpoint
 - Pi model selection worked with local models
 - Qwen tool calling worked in a smoke test
 - Gemma direct HTTP smoke test returned a valid answer
+- Ornith tool calling and reasoning worked through the Pi harness end-to-end
 
 Update note, 2026-06-11: the local source checkout was upgraded from `b8953` to `b9592` using a fresh CMake build directory. Recent `llama.cpp` releases prefer `--reasoning on` over the older `--chat-template-kwargs '{"enable_thinking":true}'` CLI flag for Qwen.
 
 Update note, 2026-06-13: Gemma 4 31B Q4_K_M was added and validated at `-c 4096`. In a simple local test, Gemma ran around 10.8 tok/s and Qwen around 12.6 tok/s. Treat this as a rough smoke-test comparison, not a full model benchmark.
+
+Update note, 2026-07-02: Ornith 1.0 35B Q4_K_M was added. It is a 35B Mixture-of-Experts model post-trained on Qwen3.5-MoE by DeepReinforce for agentic coding (Terminal-Bench, SWE-bench, NL2Repo). Despite the larger parameter count, MoE routing kept generation around 55-59 tok/s on an M1 Max at 65k context, faster than the dense 27B/31B models in this guide. Reasoning is routed through `--reasoning on` with `--reasoning-budget 2048` to bound thinking tokens per turn. In Pi, it uses `thinkingFormat: "qwen-chat-template"` (same as Qwen, since Ornith inherits the Qwen3.5 ChatML template). Tool calling was validated through the Pi harness.
 
 ---
 
@@ -161,6 +166,27 @@ If 4k is stable, test larger context gradually:
 
 Do not start Gemma at 65k or 128k context on a 32 GB machine.
 
+### Ornith
+
+```text
+ornith-1.0-35b-Q4_K_M.gguf
+```
+
+Why this quant:
+
+- 35B Mixture-of-Experts post-trained on Qwen3.5-MoE by DeepReinforce, tuned for agentic coding
+- only a subset of experts fires per token, so it runs faster than a dense 27B/31B despite more parameters
+- 21 GB on disk, fits a 32 GB machine alongside the OS at 65k context
+- validated with Pi tool calling and reasoning through the harness
+
+Ornith is a reasoning model. Use `--reasoning on` and cap thinking with `--reasoning-budget`:
+
+```text
+-c 65536 --reasoning on --reasoning-budget 2048
+```
+
+The budget is per turn, not per conversation. In a long multi-turn agent loop with many tool calls, each turn gets up to that many thinking tokens. 2048 is a good default; drop to 1024 or 512 for routine turns, or use `-1` (unlimited) for hard single-shot coding problems. Do not disable reasoning globally for agentic work — the scaffold is how Ornith plans tool calls and interprets results.
+
 ---
 
 ## Download notes
@@ -217,7 +243,25 @@ Use the exact filename from the Hugging Face repo.
   --min-p 0.0
 ```
 
-Healthy startup ends with output like:
+### Ornith 1.0 35B
+
+```bash
+./build/bin/llama-server \
+  -m "$HOME/models/ornith-1.0-35b-Q4_K_M.gguf" \
+  --host 127.0.0.1 \
+  --port 8080 \
+  -ngl 999 \
+  -c 65536 \
+  --flash-attn on \
+  --reasoning on \
+  --reasoning-budget 2048 \
+  --temp 0.6 \
+  --top-p 0.95 \
+  --top-k 20 \
+  --min-p 0.0
+```
+
+Ornith is a MoE model and takes longer to load than the dense models (roughly 20-30s cold start on an M1 Max, versus under a second for Qwen). Healthy startup ends with output like:
 
 ```text
 model loaded
@@ -235,6 +279,8 @@ This folder includes helper scripts:
 - `./stop-qwen-local.sh`
 - `./start-gemma4-local.sh`
 - `./stop-gemma4-local.sh`
+- `./start-ornith-local.sh`
+- `./stop-ornith-local.sh`
 - `./check-local-llm.sh`
 
 The check script is model-agnostic. It checks the server process, port, and `/health` endpoint.
@@ -269,6 +315,19 @@ Defaults:
 - `PORT=8080`
 - `CTX_SIZE=4096`
 
+### Start Ornith
+
+```bash
+LLAMA_DIR=/path/to/llama.cpp ./start-ornith-local.sh
+```
+
+Defaults:
+
+- `MODEL=$HOME/models/ornith-1.0-35b-Q4_K_M.gguf`
+- `PORT=8080`
+- `CTX_SIZE=65536`
+- reasoning on, reasoning-budget 2048 (baked into the script)
+
 ### Switch from Qwen to Gemma
 
 ```bash
@@ -301,6 +360,19 @@ Then in Pi select:
 qwen3.6-27b
 ```
 
+### Switch to Ornith from either model
+
+```bash
+./stop-qwen-local.sh    # or ./stop-gemma4-local.sh
+LLAMA_DIR=/path/to/llama.cpp ./start-ornith-local.sh
+```
+
+Then in Pi select:
+
+```text
+ornith-1.0-35b
+```
+
 ---
 
 ## Pi config
@@ -321,7 +393,7 @@ Important details:
 
 - Back up `models.json` before editing.
 - Merge the providers into your existing file; do not overwrite unrelated providers.
-- Both local providers point to the same server URL.
+- All three local providers point to the same server URL.
 - The selected Pi model should match the model currently loaded in `llama-server`.
 
 Recommended shape:
@@ -369,12 +441,36 @@ Recommended shape:
           "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
         }
       ]
+    },
+    "llamacpp-ornith": {
+      "baseUrl": "http://localhost:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "sk-no-key-required",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "maxTokensField": "max_tokens",
+        "thinkingFormat": "qwen-chat-template"
+      },
+      "models": [
+        {
+          "id": "ornith-1.0-35b",
+          "name": "Ornith 1.0 35B Q4_K_M (Local)",
+          "reasoning": true,
+          "input": ["text"],
+          "contextWindow": 65536,
+          "maxTokens": 8192,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
     }
   }
 }
 ```
 
-Pi reloads `models.json` when you open `/model`. In the model list, Qwen should show under `llamacpp-qwen3.6` and Gemma should show under `llamacpp-gemma4`. If a model does not appear, run `/reload` or restart Pi.
+Pi reloads `models.json` when you open `/model`. In the model list, Qwen should show under `llamacpp-qwen3.6`, Gemma under `llamacpp-gemma4`, and Ornith under `llamacpp-ornith`. If a model does not appear, run `/reload` or restart Pi.
+
+Ornith and Qwen both use `thinkingFormat: "qwen-chat-template"` because Ornith is post-trained on Qwen3.5-MoE and inherits the same ChatML template. Ornith additionally sets `maxTokensField: "max_tokens"` because `llama-server` expects that field name for this build. Leave `cost` at zero for all local models; Pi tracks usage but charges nothing.
 
 ---
 
@@ -446,7 +542,7 @@ Pi plus local `llama.cpp` is viable on an M1 Max with 32 GB RAM for 27B/31B-clas
 - keep Pi model selection aligned with the currently running server
 - benchmark real coding tasks before switching defaults
 
-For now, Qwen remains the safer default for coding because it has validated Pi tool calling and runs faster in a simple local test. Gemma 4 31B is usable and worth testing, especially for answer quality on your own workload.
+For now, Qwen remains the safest general default for coding because it has validated Pi tool calling and a fast, predictable load. Gemma 4 31B is usable and worth testing, especially for answer quality on your own workload. Ornith 1.0 35B is the strongest pick for agentic coding specifically — it was RL-tuned for tool use and multi-step coding trajectories, and thanks to MoE routing it generates faster than the dense models here while still fitting 32 GB RAM. The tradeoff is a longer cold load and a reasoning budget you have to tune; keep `--reasoning-budget` bounded in long agent loops.
 
 ---
 
